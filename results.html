@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EAS Distances</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232d3748'/%3E%3Cpath d='M16 6l3 7 7 .6-5.3 4.6 1.7 6.8L16 21.3 9.6 25l1.7-6.8L6 13.6 13 13z' fill='%23fff'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="results.css" />
+</head>
+<body>
+  <!-- On-screen view -->
+  <main class="screen" id="screen">
+    <header class="topbar">
+      <div class="title-block">
+        <h1>Distances to Hospitals</h1>
+        <p class="subtitle" id="origin-line">&nbsp;</p>
+      </div>
+      <button class="print-btn" id="print-btn" type="button">Print (2&times; A5)</button>
+    </header>
+
+    <section class="assumptions" id="assumptions"></section>
+
+    <div id="error" class="error" hidden></div>
+
+    <div class="table-wrap" id="table-wrap"></div>
+
+    <footer class="screen-footer">
+      <span>Cruise speed 140&nbsp;kts &middot; Fuel burn 400&nbsp;kg/hr &middot; Headings are true (&deg;T) great-circle tracks.</span>
+    </footer>
+  </main>
+
+  <!-- Print-only view: one A4 page split into two identical A5 copies -->
+  <div class="print-sheet" id="print-sheet" aria-hidden="true"></div>
+
+  <script src="results.js"></script>
+</body>
+</html>

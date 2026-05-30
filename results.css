@@ -1,0 +1,197 @@
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --ink: #1f2733;
+  --muted: #687385;
+  --line: #e3e6eb;
+  --accent: #2d3748;
+  --row-alt: #fafbfc;
+  --shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+/* ---------- On-screen layout ---------- */
+.screen {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.title-block h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.print-btn {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.print-btn:hover { opacity: 0.88; }
+.print-btn:active { opacity: 0.75; }
+
+.assumptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.chip strong { color: var(--ink); font-weight: 600; }
+
+.error {
+  background: #fff4f4;
+  border: 1px solid #f3c9c9;
+  color: #8a2b2b;
+  padding: 16px 18px;
+  border-radius: 10px;
+  white-space: pre-line;
+}
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.dist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.dist-table th,
+.dist-table td {
+  padding: 11px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.dist-table thead th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+  background: var(--row-alt);
+}
+.dist-table tbody tr:last-child td { border-bottom: none; }
+.dist-table tbody tr:nth-child(even) { background: var(--row-alt); }
+.dist-table .num { width: 40px; color: var(--muted); }
+.dist-table .name { font-weight: 550; }
+.dist-table .figure { text-align: right; font-variant-numeric: tabular-nums; }
+.dist-table thead th.figure { text-align: right; }
+
+.screen-footer {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* ---------- Print sheet (hidden on screen) ---------- */
+.print-sheet { display: none; }
+
+/* ---------- Print: 1 A4 page = 2 identical A5 copies ---------- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+  html, body { background: #fff; font-size: 10pt; }
+  .screen { display: none !important; }
+
+  .print-sheet {
+    display: block;
+  }
+
+  .a5-copy {
+    height: 138mm;            /* roughly half an A4 working area */
+    overflow: hidden;
+    padding: 4mm 2mm;
+    page-break-inside: avoid;
+  }
+  /* Dashed cut line between the two copies */
+  .a5-copy:first-child {
+    border-bottom: 1px dashed #999;
+  }
+
+  .copy-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1.5pt solid #000;
+    padding-bottom: 2mm;
+    margin-bottom: 2mm;
+  }
+  .copy-title { font-size: 13pt; font-weight: 700; }
+  .copy-origin { font-size: 9pt; font-variant-numeric: tabular-nums; }
+
+  .a5-copy .dist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+  .a5-copy .dist-table th,
+  .a5-copy .dist-table td {
+    padding: 1.4mm 2mm;
+    border-bottom: 0.5pt solid #ccc;
+    text-align: left;
+  }
+  .a5-copy .dist-table thead th {
+    border-bottom: 1pt solid #000;
+    text-transform: uppercase;
+    font-size: 7.5pt;
+    letter-spacing: 0.03em;
+  }
+  .a5-copy .dist-table .figure,
+  .a5-copy .dist-table thead th.figure { text-align: right; }
+  .a5-copy .dist-table .num { color: #555; }
+
+  .copy-foot {
+    margin-top: 2mm;
+    font-size: 7.5pt;
+    color: #555;
+  }
+}
