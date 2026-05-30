@@ -23,3 +23,14 @@ chrome.contextMenus.onClicked.addListener((info) => {
   const url = chrome.runtime.getURL("results.html") + "?q=" + encodeURIComponent(text);
   chrome.tabs.create({ url });
 });
+
+// Opened from the in-page button on a PDLZ datasheet (content.js).
+chrome.runtime.onMessage.addListener((msg) => {
+  if (!msg || msg.type !== "eas-open-results") return;
+  const params = new URLSearchParams();
+  params.set("q", msg.coord || "");
+  if (msg.pdlz) params.set("pdlz", msg.pdlz);
+  if (msg.site) params.set("site", msg.site);
+  const url = chrome.runtime.getURL("results.html") + "?" + params.toString();
+  chrome.tabs.create({ url });
+});

@@ -80,6 +80,12 @@ html, body {
   color: var(--muted);
 }
 .chip strong { color: var(--ink); font-weight: 600; }
+.chip-pdlz {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.chip-pdlz strong { color: #fff; }
 
 .error {
   background: #fff4f4;

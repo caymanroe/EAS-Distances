@@ -8,6 +8,13 @@
     "service_worker": "background.js",
     "scripts": ["background.js"]
   },
+  "content_scripts": [
+    {
+      "matches": ["https://aeromed.healthatlasireland.ie/datasheet/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "icons": {
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"

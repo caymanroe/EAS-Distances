@@ -158,12 +158,15 @@ function tableHTML(rows) {
 }
 
 // One A5 copy used in the print sheet.
-function copyHTML(origin, rows, stamp) {
+function copyHTML(origin, rows, stamp, meta) {
+  const title = meta.pdlz
+    ? `Distances to Hospitals &middot; PDLZ ${meta.pdlz}`
+    : "Distances to Hospitals";
   return `
     <div class="a5-copy">
       <div class="copy-head">
-        <span class="copy-title">Distances to Hospitals</span>
-        <span class="copy-origin">${decimalToDM(origin.lat, true)}, ${decimalToDM(origin.lng, false)}</span>
+        <span class="copy-title">${title}</span>
+        <span class="copy-origin">${meta.site ? meta.site + " &middot; " : ""}${decimalToDM(origin.lat, true)}, ${decimalToDM(origin.lng, false)}</span>
       </div>
       ${tableHTML(rows)}
       <div class="copy-foot">140 kts &middot; 400 kg/hr &middot; Headings °T &middot; ${stamp}</div>
@@ -182,6 +185,8 @@ function showError(msg) {
 function init() {
   const params = new URLSearchParams(window.location.search);
   const raw = (params.get("q") || "").trim();
+  const pdlz = (params.get("pdlz") || "").trim();
+  const site = (params.get("site") || "").trim();
 
   document.getElementById("print-btn").addEventListener("click", () => window.print());
 
@@ -198,11 +203,24 @@ function init() {
 
   const rows = computeRows(origin);
   const stamp = new Date().toLocaleString();
+  const meta = { pdlz, site };
+
+  if (pdlz) {
+    document.title = `Distances — PDLZ ${pdlz}`;
+    const h1 = document.querySelector(".title-block h1");
+    h1.textContent = site
+      ? `Distances to Hospitals — ${site}`
+      : "Distances to Hospitals";
+  }
 
   document.getElementById("origin-line").textContent =
     `Origin:  ${decimalToDM(origin.lat, true)}, ${decimalToDM(origin.lng, false)}   (from “${raw}”)`;
 
+  const pdlzChip = pdlz
+    ? `<span class="chip chip-pdlz">PDLZ <strong>${pdlz}</strong></span>`
+    : "";
   document.getElementById("assumptions").innerHTML = `
+    ${pdlzChip}
     <span class="chip">Cruise <strong>140 kts</strong></span>
     <span class="chip">Fuel burn <strong>400 kg/hr</strong></span>
     <span class="chip">${rows.length} destinations &middot; nearest first</span>`;
@@ -211,7 +229,7 @@ function init() {
 
   // Two identical A5 copies on one A4 sheet.
   document.getElementById("print-sheet").innerHTML =
-    copyHTML(origin, rows, stamp) + copyHTML(origin, rows, stamp);
+    copyHTML(origin, rows, stamp, meta) + copyHTML(origin, rows, stamp, meta);
 }
 
 document.addEventListener("DOMContentLoaded", init);
