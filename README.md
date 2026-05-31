@@ -1,11 +1,13 @@
 # EAS Distances
 
-A browser extension (Chrome + Firefox) for helicopter crews. Highlight a
-coordinate from a PDLZ / map page, right-click, and choose **"Distances to
-Hospitals"**. A new tab opens listing distance, heading, flight time and fuel
-burn from that point to hospitals and landing sites around Ireland — sorted
-nearest first — with a print layout that fits **two A5 copies on one A4 page**
-(one per crew member).
+A browser extension (Chrome + Firefox) for helicopter crews. Right-click a
+coordinate on any page, or open a Health Atlas datasheet — and get distances,
+magnetic headings, flight times and fuel burn from that point to hospitals
+around Ireland, plus distances from your home bases (BKATH and EIME) to
+the scene.
+
+> **Performance figures are fixed at 140 KIAS cruise speed and 400 kg/hr fuel
+> burn.** This extension is only suited for aircraft operating at these values.
 
 ## Install
 
@@ -29,6 +31,8 @@ The extension persists across restarts.
 > Developer mode is required for side-loaded extensions.
 
 ## Build the packages yourself
+
+No build tools or npm required.
 
 ```powershell
 .\package.ps1
@@ -54,23 +58,46 @@ Temporary add-ons in Firefox are removed on restart.
 
 ## Two ways to use it
 
-1. **Any page — right-click a coordinate.** Highlight a coordinate, right-click,
-   choose **"Distances to Hospitals"**.
-2. **PDLZ datasheet pages — one click.** On a Health Atlas datasheet
-   (`https://aeromed.healthatlasireland.ie/datasheet/…`) a
-   **"Distances to Hospitals (PDLZ …)"** button appears fixed at the bottom of
-   the page. It reads the site's coordinate and PDLZ number automatically.
+### 1. Any page — right-click a coordinate
 
-## Coordinate format
+Highlight a coordinate anywhere, right-click, and choose **"Distances to
+Hospitals"**. A new tab opens with the full results page showing:
 
-Highlight a coordinate in degrees-minutes-seconds, for example:
+- **Base to scene** — distance, magnetic heading, time and fuel from BKATH
+  and EIME to the highlighted coordinate
+- **Distances to hospitals** — the same figures for all destinations, sorted
+  nearest first
+
+Click **Print (2× A5)** to get a print-ready layout: two identical A5 copies
+on one A4 portrait page (one for each crew member), with a dashed cut line
+across the middle. The PDLZ number is printed when available.
+
+### 2. Health Atlas datasheet pages — inline section + Ctrl+P
+
+On a Health Atlas datasheet page
+(`https://aeromed.healthatlasireland.ie/datasheet/…`) the extension
+automatically injects:
+
+- A fixed **"Distances to Hospitals"** button at the bottom — click to open
+  the full results tab as above.
+- An **inline EAS section** injected directly into the datasheet, showing:
+  - Base-to-scene distances (BKATH and EIME)
+  - Full hospital distance table
+  - A **ForeFlight QR code** — scan with an iPad running ForeFlight to jump
+    directly to the scene location on the moving map
+
+The inline section is designed to print with Ctrl+P on a single A4 page
+alongside the datasheet content. The button is hidden during printing.
+
+## Coordinate formats
+
+The parser accepts degrees-minutes-seconds:
 
 ```
 53°10'39.38''N, 6°31'35.21''W
 ```
 
-The parser also accepts the degrees-decimal-minutes format used by the
-Health Atlas datasheets:
+And the degrees-decimal-minutes format used by Health Atlas datasheets:
 
 ```
 53° 19.687" N 7° 20.825" W
@@ -78,14 +105,26 @@ Health Atlas datasheets:
 
 ## Assumptions
 
-| Figure   | Basis                                    |
-|----------|------------------------------------------|
-| Distance | Great-circle (haversine), nautical miles |
-| Heading  | Initial true track, `°T`                 |
-| Time     | Cruise speed **140 kts**                 |
-| Fuel     | **400 kg/hr** burn                       |
+| Figure   | Value                                           |
+|----------|-------------------------------------------------|
+| Distance | Great-circle (haversine), nautical miles        |
+| Heading  | Magnetic, `°M` — variation **3° West** applied |
+| Speed    | **140 KIAS**                                    |
+| Fuel     | **400 kg/hr**                                   |
 
-> Headings are **true**. Apply local magnetic variation if needed.
+> Headings throughout the app are **magnetic** (true + 3°W variation for
+> Ireland). This is hardcoded and not adjustable.
+
+## Bases
+
+Two home bases are included and appear as a separate "Base to scene" section
+above the hospital list on both the results page and the datasheet inline
+section:
+
+| Callsign | Location       | Coordinates            |
+|----------|----------------|------------------------|
+| BKATH    | Custume Barracks, Athlone | 53°25'27.7"N 7°56'52.6"W |
+| EIME     | Casement Aerodrome, Baldonnel | 53°18'08.9"N 6°27'06.8"W |
 
 ## Destinations
 
@@ -95,25 +134,47 @@ Hospital Limerick, Letterkenny Hospital, University Hospital Galway, Castlebar
 Hospital, Beaumont Hospital Pitch, Altnagelvin Hospital.
 
 To add or edit a destination, change the `DESTINATIONS` array in
-[`results.js`](results.js). Coordinates use the aviation `DDMM.mm` form,
-e.g. `N5321.00`, `W00618.34`.
+[`results.js`](results.js) and mirror any changes in the `DESTINATIONS` array
+inside [`content.js`](content.js). Coordinates use the aviation `DDMM.mm`
+form, e.g. `N5321.00`, `W00618.34`.
+
+## ForeFlight QR code
+
+On datasheet pages the injected section includes a QR code encoding a
+ForeFlight deep link in the format:
+
+```
+foreflightmobile://maps/search?q=531039N0063135W
+```
+
+Scanning the QR from an iPad running ForeFlight opens the app and centres the
+map on the scene coordinate. The coordinate is converted to **DDMMSS** format
+internally — this is the only format reliably accepted by ForeFlight's URL
+scheme.
 
 ## Printing
 
-Click **Print (2× A5)** on the results page. The print stylesheet renders the
-list twice on a single A4 portrait sheet with a dashed cut line across the
-middle — cut once to give an identical copy to each of two crew members.
-The PDLZ number (when available) is printed on each copy.
+### Results tab (right-click flow)
+Click **Print (2× A5)** on the results tab. The print stylesheet renders the
+table twice on a single A4 portrait sheet with a dashed cut line across the
+middle — cut once to give a copy to each of two crew members.
+
+### Datasheet page (Ctrl+P)
+Press Ctrl+P on a Health Atlas datasheet page. The injected EAS section
+(base-to-scene table, hospital table, QR code) prints alongside the existing
+datasheet content. The "Distances to Hospitals" button is suppressed in print.
 
 ## Files
 
-| File            | Purpose                                              |
-|-----------------|------------------------------------------------------|
-| `manifest.json` | Extension manifest (MV3, cross-browser)              |
-| `background.js` | Context-menu item + message handler for results tab  |
-| `content.js`    | Injects button on PDLZ datasheet pages               |
-| `results.html`  | Results page                                         |
-| `results.js`    | Parsing, great-circle maths, rendering               |
-| `results.css`   | On-screen styling + A4→2×A5 print layout             |
-| `icons/`        | Toolbar icons                                        |
-| `package.ps1`   | Build script — creates `dist/` ZIP and XPI           |
+| File            | Purpose                                                       |
+|-----------------|---------------------------------------------------------------|
+| `manifest.json` | Extension manifest (MV3, Chrome + Firefox)                    |
+| `background.js` | Context-menu item + message handler for results tab           |
+| `content.js`    | Injects button and inline EAS section on datasheet pages      |
+| `qrcode.js`     | Browser-native QR code library (qrcode-generator, MIT)        |
+| `results.html`  | Results page layout                                           |
+| `results.js`    | Coordinate parsing, great-circle maths, results rendering     |
+| `results.css`   | On-screen styling + A4→2×A5 print layout                      |
+| `icons/`        | Toolbar icons (48px, 128px)                                   |
+| `package.ps1`   | Build script — creates `dist/eas-distances.zip` and `.xpi`   |
+| `CLAUDE.md`     | Developer context for AI-assisted development sessions        |
