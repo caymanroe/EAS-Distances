@@ -22,10 +22,18 @@
 
     <div id="error" class="error" hidden></div>
 
-    <div class="table-wrap" id="table-wrap"></div>
+    <section class="results-section" id="bases-section" hidden>
+      <h2 class="section-label">From base to scene</h2>
+      <div class="table-wrap" id="bases-wrap"></div>
+    </section>
+
+    <section class="results-section" id="hospitals-section" hidden>
+      <h2 class="section-label">Distances to hospitals &mdash; nearest first</h2>
+      <div class="table-wrap" id="table-wrap"></div>
+    </section>
 
     <footer class="screen-footer">
-      <span>Cruise speed 140&nbsp;kts &middot; Fuel burn 400&nbsp;kg/hr &middot; Headings are true (&deg;T) great-circle tracks.</span>
+      <span>Cruise speed 140&nbsp;kts &middot; Fuel burn 400&nbsp;kg/hr &middot; Headings are magnetic (&deg;M), variation 3&deg;W.</span>
     </footer>
   </main>
 

@@ -3,6 +3,14 @@
 // ---- Configuration -------------------------------------------------------
 const CRUISE_KTS = 140;      // knots
 const FUEL_KG_PER_HR = 400;  // kg per hour
+// West magnetic variation for Ireland (2025). Magnetic = True + MAGNETIC_VAR_W.
+const MAGNETIC_VAR_W = 3;
+
+// Known bases (decimal degrees, pre-computed from DMS).
+const BASES = [
+  { name: "BKATH", lat: 53 + 25/60 + 27.7/3600, lng: -(7 + 56/60 + 52.6/3600) },
+  { name: "EIME",  lat: 53 + 18/60 +  8.9/3600, lng: -(6 + 27/60 +  6.8/3600) },
+];
 
 // Destinations. Coordinates given in aviation DDMM.mm form (e.g. N5321.00).
 const DESTINATIONS = [
@@ -91,6 +99,11 @@ function bearingDeg(lat1, lon1, lat2, lon2) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
+// Convert true bearing to magnetic using fixed Irish variation (West, so add).
+function toMagnetic(trueBrg) {
+  return (trueBrg + MAGNETIC_VAR_W + 360) % 360;
+}
+
 // ---- Formatting ----------------------------------------------------------
 
 function fmtBearing(b) {
@@ -115,16 +128,52 @@ function decimalToDM(dd, isLat) {
 
 // ---- Build rows ----------------------------------------------------------
 
+// Scene → hospitals (sorted nearest first).
 function computeRows(origin) {
   return DESTINATIONS.map((d) => {
     const dlat = parseAviationCoord(d.lat);
     const dlng = parseAviationCoord(d.lng);
     const dist = distanceNM(origin.lat, origin.lng, dlat, dlng);
-    const brg = bearingDeg(origin.lat, origin.lng, dlat, dlng);
+    const brg = toMagnetic(bearingDeg(origin.lat, origin.lng, dlat, dlng));
     const timeMin = (dist / CRUISE_KTS) * 60;
     const fuelKg = (dist / CRUISE_KTS) * FUEL_KG_PER_HR;
     return { name: d.name, dist, brg, timeMin, fuelKg };
   }).sort((a, b) => a.dist - b.dist);
+}
+
+// Base → scene (one row per base, order preserved).
+function computeBaseRows(scene) {
+  return BASES.map((b) => {
+    const dist = distanceNM(b.lat, b.lng, scene.lat, scene.lng);
+    const brg = toMagnetic(bearingDeg(b.lat, b.lng, scene.lat, scene.lng));
+    const timeMin = (dist / CRUISE_KTS) * 60;
+    const fuelKg = (dist / CRUISE_KTS) * FUEL_KG_PER_HR;
+    return { name: b.name, dist, brg, timeMin, fuelKg };
+  });
+}
+
+function basesTableHTML(rows) {
+  const body = rows.map((r) => `
+      <tr>
+        <td class="name">${r.name}</td>
+        <td class="figure">${r.dist.toFixed(1)}</td>
+        <td class="figure">${fmtBearing(r.brg)}</td>
+        <td class="figure">${fmtTime(r.timeMin)}</td>
+        <td class="figure">${Math.round(r.fuelKg)}</td>
+      </tr>`).join("");
+  return `
+    <table class="dist-table">
+      <thead>
+        <tr>
+          <th class="name">Base</th>
+          <th class="figure">Dist (NM)</th>
+          <th class="figure">Hdg (°M)</th>
+          <th class="figure">Time</th>
+          <th class="figure">Fuel (kg)</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>`;
 }
 
 function tableHTML(rows) {
@@ -148,7 +197,7 @@ function tableHTML(rows) {
           <th class="num">#</th>
           <th class="name">Destination</th>
           <th class="figure">Dist (NM)</th>
-          <th class="figure">Hdg (°T)</th>
+          <th class="figure">Hdg (°M)</th>
           <th class="figure">Time</th>
           <th class="figure">Fuel (kg)</th>
         </tr>
@@ -158,7 +207,7 @@ function tableHTML(rows) {
 }
 
 // One A5 copy used in the print sheet.
-function copyHTML(origin, rows, stamp, meta) {
+function copyHTML(origin, rows, stamp, meta, baseRows) {
   const title = meta.pdlz
     ? `Distances to Hospitals &middot; PDLZ ${meta.pdlz}`
     : "Distances to Hospitals";
@@ -168,8 +217,11 @@ function copyHTML(origin, rows, stamp, meta) {
         <span class="copy-title">${title}</span>
         <span class="copy-origin">${meta.site ? meta.site + " &middot; " : ""}${decimalToDM(origin.lat, true)}, ${decimalToDM(origin.lng, false)}</span>
       </div>
+      <div class="copy-section-label">Base &#x2192; Scene</div>
+      ${basesTableHTML(baseRows)}
+      <div class="copy-section-label">Hospitals &#x2014; nearest first</div>
       ${tableHTML(rows)}
-      <div class="copy-foot">140 kts &middot; 400 kg/hr &middot; Headings °T &middot; ${stamp}</div>
+      <div class="copy-foot">140 kts &middot; 400 kg/hr &middot; Headings &deg;M (var ${MAGNETIC_VAR_W}&deg;W) &middot; ${stamp}</div>
     </div>`;
 }
 
@@ -179,7 +231,6 @@ function showError(msg) {
   const el = document.getElementById("error");
   el.textContent = msg;
   el.hidden = false;
-  document.getElementById("table-wrap").innerHTML = "";
 }
 
 function init() {
@@ -202,6 +253,7 @@ function init() {
   }
 
   const rows = computeRows(origin);
+  const baseRows = computeBaseRows(origin);
   const stamp = new Date().toLocaleString();
   const meta = { pdlz, site };
 
@@ -225,11 +277,15 @@ function init() {
     <span class="chip">Fuel burn <strong>400 kg/hr</strong></span>
     <span class="chip">${rows.length} destinations &middot; nearest first</span>`;
 
+  document.getElementById("bases-section").hidden = false;
+  document.getElementById("bases-wrap").innerHTML = basesTableHTML(baseRows);
+
+  document.getElementById("hospitals-section").hidden = false;
   document.getElementById("table-wrap").innerHTML = tableHTML(rows);
 
   // Two identical A5 copies on one A4 sheet.
   document.getElementById("print-sheet").innerHTML =
-    copyHTML(origin, rows, stamp, meta) + copyHTML(origin, rows, stamp, meta);
+    copyHTML(origin, rows, stamp, meta, baseRows) + copyHTML(origin, rows, stamp, meta, baseRows);
 }
 
 document.addEventListener("DOMContentLoaded", init);

@@ -130,6 +130,19 @@ html, body {
 .dist-table .figure { text-align: right; font-variant-numeric: tabular-nums; }
 .dist-table thead th.figure { text-align: right; }
 
+.results-section {
+  margin-bottom: 20px;
+}
+
+.section-label {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
 .screen-footer {
   margin-top: 16px;
   color: var(--muted);
@@ -194,6 +207,15 @@ html, body {
   .a5-copy .dist-table .figure,
   .a5-copy .dist-table thead th.figure { text-align: right; }
   .a5-copy .dist-table .num { color: #555; }
+
+  .copy-section-label {
+    font-size: 7pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666;
+    margin: 1.5mm 0 0.5mm;
+  }
 
   .copy-foot {
     margin-top: 2mm;

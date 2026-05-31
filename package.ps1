@@ -19,6 +19,7 @@ New-Item -ItemType Directory $dist | Out-Null
 $include = @(
     "manifest.json",
     "background.js",
+    "qrcode.js",
     "content.js",
     "results.html",
     "results.js",

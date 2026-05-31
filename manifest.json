@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "EAS Distances",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Right-click a coordinate (e.g. 53°10'39.38''N, 6°31'35.21''W) to get distances, headings, times and fuel burn to hospitals around Ireland.",
   "permissions": ["contextMenus"],
   "background": {
@@ -11,7 +11,7 @@
   "content_scripts": [
     {
       "matches": ["https://aeromed.healthatlasireland.ie/datasheet/*"],
-      "js": ["content.js"],
+      "js": ["qrcode.js", "content.js"],
       "run_at": "document_idle"
     }
   ],
