@@ -6,8 +6,15 @@ magnetic headings, flight times and fuel burn from that point to hospitals
 around Ireland, plus distances from your home bases (BKATH and EIME) to
 the scene.
 
-> **Performance figures are fixed at 140 KIAS cruise speed and 400 kg/hr fuel
+> **Performance figures are fixed at 140 kt true airspeed and 400 kg/hr fuel
 > burn.** This extension is only suited for aircraft operating at these values.
+
+Flight times and fuel are **wind-corrected**: the extension looks up the wind at
+~1000 ft (975 hPa) at the scene from the free [Open-Meteo](https://open-meteo.com)
+API and computes a groundspeed for each leg. The wind used (direction °M / speed
+kt) is shown on the results page and printed on each A5 slip. If the wind lookup
+fails or you are offline, the extension falls back to **still-air** times and says
+so — it always remains fully usable.
 
 ## Install
 
@@ -109,11 +116,19 @@ And the degrees-decimal-minutes format used by Health Atlas datasheets:
 |----------|-------------------------------------------------|
 | Distance | Great-circle (haversine), nautical miles        |
 | Heading  | Magnetic, `°M` — variation **3° West** applied |
-| Speed    | **140 KIAS**                                    |
-| Fuel     | **400 kg/hr**                                   |
+| Airspeed | **140 kt TAS**                                  |
+| Wind     | Open-Meteo, **975 hPa (~1000 ft)** at the scene |
+| Time     | Per-leg groundspeed (TAS + wind), else still air |
+| Fuel     | **400 kg/hr** × wind-adjusted flight time       |
 
 > Headings throughout the app are **magnetic** (true + 3°W variation for
 > Ireland). This is hardcoded and not adjustable.
+>
+> Times use a **held-track groundspeed**: the aircraft is assumed to crab onto
+> each desired track, so a headwind lengthens the leg and a tailwind shortens it.
+> The wind direction is shown magnetic (°M) to match the heading column, though
+> the underlying maths runs in true. Fuel tracks the wind-adjusted time, so a
+> headwind also increases fuel.
 
 ## Bases
 
@@ -131,7 +146,7 @@ section:
 Phoenix Park, Cathal Brugha Barracks, Bishopstown GAA, Cork University
 Hospital, Tralee Hospital, Tallaght Hospital, Sligo Hospital, University
 Hospital Limerick, Letterkenny Hospital, University Hospital Galway, Castlebar
-Hospital, Beaumont Hospital Pitch, Altnagelvin Hospital.
+Hospital, Beaumont Hospital Pitch, Altnagelvin Hospital, Waterford Airport.
 
 To add or edit a destination, change the `DESTINATIONS` array in
 [`results.js`](results.js) and mirror any changes in the `DESTINATIONS` array
@@ -169,8 +184,8 @@ datasheet content. The "Distances to Hospitals" button is suppressed in print.
 | File            | Purpose                                                       |
 |-----------------|---------------------------------------------------------------|
 | `manifest.json` | Extension manifest (MV3, Chrome + Firefox)                    |
-| `background.js` | Context-menu item + message handler for results tab           |
-| `content.js`    | Injects button and inline EAS section on datasheet pages      |
+| `background.js` | Context-menu item, results-tab opener + wind proxy for content.js |
+| `content.js`    | Injects button and inline EAS section (wind-adjusted) on datasheet pages |
 | `qrcode.js`     | Browser-native QR code library (qrcode-generator, MIT)        |
 | `results.html`  | Results page layout                                           |
 | `results.js`    | Coordinate parsing, great-circle maths, results rendering     |

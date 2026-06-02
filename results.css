@@ -86,6 +86,17 @@ html, body {
   color: #fff;
 }
 .chip-pdlz strong { color: #fff; }
+.chip-wind {
+  background: #eef4ff;
+  border-color: #c8d8f5;
+  color: #2b4a7a;
+}
+.chip-wind strong { color: #1c3c6b; }
+.chip-warn {
+  background: #fff7ed;
+  border-color: #f4d9b0;
+  color: #8a5a1b;
+}
 
 .error {
   background: #fff4f4;
@@ -148,6 +159,10 @@ html, body {
   color: var(--muted);
   font-size: 12.5px;
 }
+.wind-footnote {
+  display: block;
+  margin-top: 4px;
+}
 
 /* ---------- Print sheet (hidden on screen) ---------- */
 .print-sheet { display: none; }
@@ -194,7 +209,7 @@ html, body {
   }
   .a5-copy .dist-table th,
   .a5-copy .dist-table td {
-    padding: 1.4mm 2mm;
+    padding: 1.05mm 2mm;
     border-bottom: 0.5pt solid #ccc;
     text-align: left;
   }

@@ -45,12 +45,38 @@ Health Atlas button click
 
 ### Configuration constants
 ```js
-CRUISE_KTS     = 140       // knots
+CRUISE_KTS     = 140       // knots (true airspeed)
 FUEL_KG_PER_HR = 400       // kg/hr
 MAGNETIC_VAR_W = 3         // degrees West magnetic variation for Ireland (2025)
+WIND_API       = "https://api.open-meteo.com/v1/forecast"
+WIND_SPEED_VAR / WIND_DIR_VAR = "windspeed_975hPa" / "winddirection_975hPa"  // ~1000ft
 BASES          = [ … ]    // BKATH + EIME, decimal degrees pre-computed from DMS
-DESTINATIONS   = [ … ]    // 13 hospital entries, coords in aviation DDmm.mm format
+DESTINATIONS   = [ … ]    // 14 hospital entries, coords in aviation DDmm.mm format
 ```
+
+### Wind correction (v1.3.0+)
+
+Flight times are wind-adjusted via groundspeed. `fetchWind(lat,lng)` calls the
+free, no-auth **Open-Meteo** API for wind at **975 hPa (~1000 ft)** at the scene
+(one call), picks the current UTC hour, and returns `{speedKt, dirDegTrue}`
+(direction is FROM, true). `groundspeedKt(tas, trackTrue, wind)` uses the
+held-track (E6B/crab) formula: crab to hold the desired true track, then
+`GS = TAS·cos(WCA) + alongTrackWind`. `wind === null` ⇒ GS = TAS (still air), so
+still-air and wind paths share one code path (`legRow`).
+
+**Fail-safe:** `init()` renders still-air figures immediately (`renderAll(origin,
+null, …, "fetching")`), then upgrades to wind on fetch success, or stays still-air
+on failure/offline and annunciates "Wind unavailable — still-air times". The tool
+never breaks if the API is down.
+
+**Display:** wind direction shown **magnetic** (°M, via `toMagnetic`) to match the
+heading column; GS maths runs in **true**. Fuel = (wind-adjusted min / 60) ×
+`FUEL_KG_PER_HR`, so headwind raises both time and fuel.
+
+**content.js parity:** the datasheet inline section is wind-adjusted too, but a
+content script can't safely fetch cross-origin — it asks `background.js` via an
+`{type:"eas-fetch-wind", lat, lng}` message; the worker (holds `host_permissions`)
+fetches and replies `{ok, wind}`.
 
 ### Coordinate formats
 
@@ -69,21 +95,26 @@ DESTINATIONS   = [ … ]    // 13 hospital entries, coords in aviation DDmm.mm f
 | `distanceNM(lat1,lon1,lat2,lon2)` | Haversine great-circle distance in NM. Earth radius = 6,371 km → ÷ 1,852 m/NM. |
 | `bearingDeg(lat1,lon1,lat2,lon2)` | Initial true bearing, 0–360. |
 | `toMagnetic(trueBrg)` | Converts true → magnetic by adding `MAGNETIC_VAR_W`. West variation means magnetic = true + var. |
-| `computeRows(origin)` | Maps all 13 destinations → `{name, dist, brg, timeMin, fuelKg}` (brg is magnetic), sorted ASC. |
-| `computeBaseRows(scene)` | Maps BKATH + EIME → same row shape, direction is base→scene, order preserved. |
+| `fetchWind(lat,lng)` | Open-Meteo wind at 975 hPa, current UTC hour → `{speedKt, dirDegTrue}`; throws on failure. |
+| `groundspeedKt(tas,trackTrue,wind)` | Held-track (E6B) groundspeed; returns `tas` when `wind` is null. |
+| `legRow(name,dist,trueBrg,wind)` | Builds one row: GS-based `timeMin`, fuel from time, magnetic `brg` for display. |
+| `computeRows(origin, wind)` | Maps all 14 destinations → rows via `legRow`, sorted ASC. |
+| `computeBaseRows(scene, wind)` | Maps BKATH + EIME → same row shape, direction is base→scene, order preserved. |
 | `basesTableHTML(rows)` | Table for the two base rows (no # column, "Base" header). |
 | `fmtBearing(b)` | → `"045°"` (suffix-free; column header carries the °M label) |
 | `fmtTime(minutes)` | → `"45 min"` or `"1:30"` |
 | `decimalToDM(dd, isLat)` | → `"N53° 21.00'"` for display |
 | `tableHTML(rows)` | Generates `<table class="dist-table">` for hospitals |
-| `copyHTML(origin, rows, stamp, meta, baseRows)` | Generates one A5 copy block (used twice for print); includes base→scene section above hospitals |
-| `init()` | Entry point on DOMContentLoaded: parse URL params → validate → compute → render both sections |
+| `copyHTML(origin, rows, stamp, meta, baseRows, wind)` | Generates one A5 copy block (used twice for print); base→scene above hospitals; wind in the footer |
+| `renderAll(origin, wind, meta, stamp, windState)` | Shared render: chips, both tables, footer note, print sheet. Called for still-air then again with wind. |
+| `init()` | Entry point on DOMContentLoaded: parse/validate → render still-air → `fetchWind` → re-render or fall back |
 
 ### Calculations
 ```
-timeMin        = (dist_NM / CRUISE_KTS) * 60
-fuelKg         = (dist_NM / CRUISE_KTS) * FUEL_KG_PER_HR
-magneticBrg    = (trueBrg + MAGNETIC_VAR_W + 360) % 360   // West var → add
+GS             = groundspeedKt(CRUISE_KTS, trueTrack, wind)  // = CRUISE_KTS if no wind
+timeMin        = (dist_NM / GS) * 60
+fuelKg         = (timeMin / 60) * FUEL_KG_PER_HR
+magneticBrg    = (trueBrg + MAGNETIC_VAR_W + 360) % 360       // West var → add
 ```
 
 ---
@@ -102,6 +133,14 @@ PDLZ is assembled as `"<ID>-<PREFIX>"`. Fallback: parse from the URL path `/data
 
 Button is injected at `bottom: 18px`, centered, with id `"eas-distances-btn"` (prevents duplicates).
 
+The inline section is **wind-adjusted** to match the results page. `content.js`
+mirrors `groundspeedKt` / `legRow` / `computeRows(origin, wind)` and requests wind
+from `background.js` (`eas-fetch-wind` message). It renders still-air immediately,
+then re-renders (`renderInline`) when wind resolves; `#eas-bases-wrap`,
+`#eas-hosp-wrap` and `#eas-foot` are the update targets. **content.js keeps its own
+copy of `DESTINATIONS`** — Waterford and any future site must be added in both
+`results.js` and `content.js`.
+
 ---
 
 ## Print Layout
@@ -112,15 +151,15 @@ Two separate HTML blocks in `results.html`:
 
 CSS `@media print` switches visibility. Both A5 copies are generated by `copyHTML()` and inserted into `.print-sheet` before the page loads — no DOM work at print time.
 
-Print spec: A4 portrait, 8mm margins, two `.a5-copy` blocks at 138mm height each, dashed border between them as a cut guide. Table font: 9pt with `font-variant-numeric: tabular-nums` for column alignment.
+Print spec: A4 portrait, 8mm margins, two `.a5-copy` blocks at 138mm height each, dashed border between them as a cut guide. Table font: 9pt with `font-variant-numeric: tabular-nums` for column alignment. **Row padding is `1.05mm` (tightened from 1.4mm)** so 14 hospitals + 2 base rows + the wind footer fit two copies on one A4; `.a5-copy` keeps `overflow:hidden` as the safety net. Re-check print preview when adding rows.
 
 ---
 
-## Destinations (13 sites)
+## Destinations (14 sites)
 
-Phoenix Park, Cathal Brugha Barracks, Bishopstown GAA, Cork University Hospital, Tralee Hospital, Tallaght Hospital, Sligo Hospital, University Hospital Limerick, Letterkenny Hospital, University Hospital Galway, Castlebar Hospital, Beaumont Hospital Pitch, Altnagelvin Hospital.
+Phoenix Park, Cathal Brugha Barracks, Bishopstown GAA, Cork University Hospital, Tralee Hospital, Tallaght Hospital, Sligo Hospital, University Hospital Limerick, Letterkenny Hospital, University Hospital Galway, Castlebar Hospital, Beaumont Hospital Pitch, Altnagelvin Hospital, Waterford Airport.
 
-Coordinates are stored in aviation `DDmm.mm` format inside the `DESTINATIONS` array in `results.js`.
+Coordinates are stored in aviation `DDmm.mm` format inside the `DESTINATIONS` array in `results.js` **and mirrored in `content.js`**.
 
 ---
 
@@ -143,10 +182,10 @@ Both files are identical ZIP archives; only the extension differs.
 ## Manifest Notes
 
 - MV3 (Manifest Version 3) — required for modern Chrome and Firefox 140+
-- Permissions: `contextMenus` only — no host permissions, no storage, no network
+- Permissions: `contextMenus`; **host_permissions: `https://api.open-meteo.com/*`** (wind lookup)
 - Firefox gecko ID: `eas-distances@eas.local`
 - Min Firefox version: 140.0
-- Data collection: none
+- Data collection: **`locationInfo`** — the scene coordinate is sent to Open-Meteo for wind (declared for AMO honesty; was `none` pre-1.3.0)
 - Content script timing: `document_idle`
 
 ---
@@ -159,4 +198,6 @@ Both files are identical ZIP archives; only the extension differs.
 - **Cruise speed and fuel are hardcoded constants** at the top of `results.js` — easy to change without touching the maths.
 - **Bases (BKATH, EIME) are stored as pre-computed decimal degrees** in the `BASES` array. The on-screen results show a "From base to scene" section above the hospitals table; the print sheet includes both sections in each A5 copy.
 - **Both sections hidden until JS succeeds** — `#bases-section` and `#hospitals-section` have `hidden` attribute in HTML; `init()` reveals them only after a valid coordinate is parsed.
-- **Destination list is a plain array** in `results.js` — adding or removing sites means editing that array. No external data source.
+- **Destination list is a plain array** in `results.js` — adding or removing sites means editing that array **and the mirror in `content.js`**. No external data source.
+- **Wind is best-effort, never blocking** — a single Open-Meteo call at the scene; any failure (offline, HTTP error, missing data) silently falls back to still-air with a visible "Wind unavailable" note. Never let wind errors break rendering.
+- **`background.js` proxies wind for `content.js`** — content scripts can hit CORS/CSP limits, so the worker (which holds `host_permissions`) does the fetch and replies; the listener returns `true` to keep the async channel open.

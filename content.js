@@ -32,6 +32,7 @@
     { name: "Castlebar Hospital",          lat: "N5351.00", lng: "W00918.10" },
     { name: "Beaumont Hospital Pitch",     lat: "N5323.30", lng: "W00613.80" },
     { name: "Altnagelvin Hospital",        lat: "N5459.10", lng: "W00717.50" },
+    { name: "Waterford Airport",           lat: "N5211.22", lng: "W00705.23" },
   ];
 
   // ---- Context reading ------------------------------------------------------
@@ -123,6 +124,18 @@
 
   function toMagnetic(b) { return (b + MAGNETIC_VAR_W + 360) % 360; }
 
+  // Groundspeed (kt) holding a true track against wind (E6B / crab).
+  // wind = { speedKt, dirDegTrue } (FROM direction); null -> still air.
+  function groundspeedKt(tasKt, trackTrueDeg, wind) {
+    if (!wind) return tasKt;
+    const windTo = (wind.dirDegTrue + 180) % 360;
+    const rel = toRad(windTo - trackTrueDeg);
+    const crossWind = wind.speedKt * Math.sin(rel);
+    const alongWind = wind.speedKt * Math.cos(rel);
+    const wca = Math.asin(Math.max(-1, Math.min(1, crossWind / tasKt)));
+    return tasKt * Math.cos(wca) + alongWind;
+  }
+
   // ---- Formatting -----------------------------------------------------------
 
   function fmtBrg(b)  { return String(Math.round(b)).padStart(3,"0") + "°"; }
@@ -130,25 +143,50 @@
     const t = Math.round(m), h = Math.floor(t/60), mm = t%60;
     return h > 0 ? `${h}:${String(mm).padStart(2,"0")}` : `${mm} min`;
   }
+  function fmtWind(wind) {
+    if (!wind) return "unavailable";
+    const dirM = String(Math.round(toMagnetic(wind.dirDegTrue))).padStart(3,"0");
+    return `${dirM}°M / ${Math.round(wind.speedKt)} kt`;
+  }
 
   // ---- Row computation ------------------------------------------------------
 
-  function computeRows(origin) {
+  function legRow(name, dist, trueBrg, wind) {
+    const gs = groundspeedKt(CRUISE_KTS, trueBrg, wind);
+    const timeMin = (dist / gs) * 60;
+    return { name, dist, brg: toMagnetic(trueBrg),
+             timeMin, fuelKg: (timeMin / 60) * FUEL_KG_PER_HR };
+  }
+
+  function computeRows(origin, wind) {
     return DESTINATIONS.map((d) => {
       const dlat = parseAviationCoord(d.lat), dlng = parseAviationCoord(d.lng);
       const dist = distanceNM(origin.lat, origin.lng, dlat, dlng);
-      const brg  = toMagnetic(bearingDeg(origin.lat, origin.lng, dlat, dlng));
-      return { name: d.name, dist, brg,
-               timeMin: (dist/CRUISE_KTS)*60, fuelKg: (dist/CRUISE_KTS)*FUEL_KG_PER_HR };
+      const trueBrg = bearingDeg(origin.lat, origin.lng, dlat, dlng);
+      return legRow(d.name, dist, trueBrg, wind);
     }).sort((a,b) => a.dist - b.dist);
   }
 
-  function computeBaseRows(scene) {
+  function computeBaseRows(scene, wind) {
     return BASES.map((b) => {
       const dist = distanceNM(b.lat, b.lng, scene.lat, scene.lng);
-      const brg  = toMagnetic(bearingDeg(b.lat, b.lng, scene.lat, scene.lng));
-      return { name: b.name, dist, brg,
-               timeMin: (dist/CRUISE_KTS)*60, fuelKg: (dist/CRUISE_KTS)*FUEL_KG_PER_HR };
+      const trueBrg = bearingDeg(b.lat, b.lng, scene.lat, scene.lng);
+      return legRow(b.name, dist, trueBrg, wind);
+    });
+  }
+
+  // Ask the background worker (which holds host permission) for wind at ~1000ft.
+  // Resolves to a wind object or null on any failure — never rejects.
+  function fetchWind(lat, lng) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "eas-fetch-wind", lat, lng }, (resp) => {
+          if (chrome.runtime.lastError || !resp || !resp.ok) return resolve(null);
+          resolve(resp.wind);
+        });
+      } catch (_) {
+        resolve(null);
+      }
     });
   }
 
@@ -238,10 +276,27 @@
 
     const ffCoord = coordToForeFlight(ctx.coord);
     const ffUrl   = ffCoord ? "foreflightmobile://maps/search?q=" + ffCoord : null;
-    const rows     = computeRows(origin);
-    const baseRows = computeBaseRows(origin);
     const stamp    = new Date().toLocaleString("en-IE");
     const heading  = ctx.pdlz ? `EAS Distances · PDLZ ${ctx.pdlz}` : "EAS Distances";
+
+    // Footer note: base perf line + wind status (pending / wind-adjusted / unavailable).
+    function footHTML(wind, windDone) {
+      let windTxt;
+      if (!windDone) windTxt = "Times still-air &middot; fetching wind at 1000&nbsp;ft&hellip;";
+      else if (wind) windTxt = `Wind 1000ft ${fmtWind(wind)} (times wind-adjusted)`;
+      else windTxt = "Wind unavailable &mdash; still-air times";
+      return `140&nbsp;kts TAS &middot; 400&nbsp;kg/hr &middot; Headings &deg;M (var ${MAGNETIC_VAR_W}&deg;W) &middot; ${windTxt} &middot; ${stamp}`;
+    }
+
+    // (Re)populate the two tables and footer for a given wind (null = still air).
+    function renderInline(wind, windDone) {
+      const b = document.getElementById("eas-bases-wrap");
+      const h = document.getElementById("eas-hosp-wrap");
+      const f = document.getElementById("eas-foot");
+      if (b) b.innerHTML = basesTableHTML(computeBaseRows(origin, wind));
+      if (h) h.innerHTML = hospitalsTableHTML(computeRows(origin, wind));
+      if (f) f.innerHTML = footHTML(wind, windDone);
+    }
 
     // ---- Styles -------------------------------------------------------------
     const style = document.createElement("style");
@@ -420,22 +475,28 @@
       <div class="eas-body">
         <div class="eas-tables">
           <div class="eas-group-label">From base to scene</div>
-          ${basesTableHTML(baseRows)}
+          <div id="eas-bases-wrap"></div>
           <div class="eas-group-label">Distances to hospitals &mdash; nearest first</div>
-          ${hospitalsTableHTML(rows)}
+          <div id="eas-hosp-wrap"></div>
         </div>
         ${qrBlock}
       </div>
 
-      <div class="eas-foot">
-        140&nbsp;kts &middot; 400&nbsp;kg/hr &middot; Headings &deg;M (var ${MAGNETIC_VAR_W}&deg;W) &middot; ${stamp}
-      </div>
+      <div class="eas-foot" id="eas-foot"></div>
     `;
+
+    // Wind kicked off once; section renders still-air immediately, then upgrades.
+    let windDone = false, windValue = null;
+    fetchWind(origin.lat, origin.lng).then((w) => {
+      windDone = true; windValue = w;
+      if (document.getElementById("eas-section")) renderInline(windValue, true);
+    });
 
     // ---- Inject after .datasheet-footer -------------------------------------
     function inject(target) {
       if (document.getElementById("eas-section")) return;
       target.insertAdjacentElement("afterend", section);
+      renderInline(windValue, windDone);
       if (ffUrl) renderQR(ffUrl);
     }
 
@@ -453,6 +514,7 @@
       if (document.getElementById("eas-section")) return;
       observer.disconnect();
       (document.getElementById("vueDatasheetApp") || document.body).appendChild(section);
+      renderInline(windValue, windDone);
       if (ffUrl) renderQR(ffUrl);
     }, 4000);
   }

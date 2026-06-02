@@ -1,3 +1,5 @@
 node_modules/
 test-qr*.png
 example.jpg
+CLAUDE.md
+open-meteo-wind-api-reference.md
