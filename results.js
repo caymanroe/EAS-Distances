@@ -20,8 +20,6 @@ const BASES = [
 // Destinations. Coordinates given in aviation DDMM.mm form (e.g. N5321.00).
 const DESTINATIONS = [
   { name: "Phoenix Park",               lat: "N5321.00", lng: "W00618.34" },
-  { name: "Cathal Brugha Barracks",     lat: "N5319.63", lng: "W00616.30" },
-  { name: "Bishopstown GAA",            lat: "N5153.10", lng: "W00831.30" },
   { name: "Cork University Hospital",   lat: "N5153.08", lng: "W00830.55" },
   { name: "Tralee Hospital",            lat: "N5215.90", lng: "W00941.20" },
   { name: "Tallaght Hospital",          lat: "N5317.40", lng: "W00622.60" },
@@ -31,7 +29,8 @@ const DESTINATIONS = [
   { name: "University Hospital Galway",  lat: "N5316.60", lng: "W00904.20" },
   { name: "Castlebar Hospital",         lat: "N5351.00", lng: "W00918.10" },
   { name: "Beaumont Hospital Pitch",    lat: "N5323.30", lng: "W00613.80" },
-  { name: "Altnagelvin Hospital",       lat: "N5459.10", lng: "W00717.50" },
+  { name: "Tullamore Hospital",         lat: "N5316.87", lng: "W00729.59" },
+  { name: "Casement Aerodrome",         lat: "N5318.15", lng: "W00626.63" },
   { name: "Waterford Airport",          lat: "N5211.22", lng: "W00705.23" }
 ];
 
