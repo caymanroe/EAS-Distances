@@ -19,19 +19,19 @@ const BASES = [
 
 // Destinations. Coordinates given in aviation DDMM.mm form (e.g. N5321.00).
 const DESTINATIONS = [
-  { name: "Phoenix Park",               lat: "N5321.00", lng: "W00618.34" },
-  { name: "Cork University Hospital",   lat: "N5153.08", lng: "W00830.55" },
-  { name: "Tralee Hospital",            lat: "N5215.90", lng: "W00941.20" },
-  { name: "Tallaght Hospital",          lat: "N5317.40", lng: "W00622.60" },
-  { name: "Sligo Hospital",             lat: "N5416.50", lng: "W00828.00" },
-  { name: "University Hospital Limerick",lat: "N5238.00", lng: "W00839.10" },
-  { name: "Letterkenny Hospital",       lat: "N5457.71", lng: "W00744.10" },
-  { name: "University Hospital Galway",  lat: "N5316.60", lng: "W00904.20" },
-  { name: "Castlebar Hospital",         lat: "N5351.00", lng: "W00918.10" },
-  { name: "Beaumont Hospital Pitch",    lat: "N5323.30", lng: "W00613.80" },
-  { name: "Tullamore Hospital",         lat: "N5316.87", lng: "W00729.59" },
-  { name: "Casement Aerodrome",         lat: "N5318.15", lng: "W00626.63" },
-  { name: "Waterford Airport",          lat: "N5211.22", lng: "W00705.23" }
+  { name: "Phoenix Park",               fms: "PHXPK", lat: "N5321.00", lng: "W00618.34" },
+  { name: "Cork University Hospital",   fms: "425AC", lat: "N5153.08", lng: "W00830.55" },
+  { name: "Tralee Hospital",            fms: "HOTRL", lat: "N5215.90", lng: "W00941.20" },
+  { name: "Tallaght Hospital",          fms: "HOTAT", lat: "N5317.40", lng: "W00622.60" },
+  { name: "Sligo Hospital",             fms: "HOSLG", lat: "N5416.50", lng: "W00828.00" },
+  { name: "University Hospital Limerick",fms: "HOLIM", lat: "N5238.00", lng: "W00839.10" },
+  { name: "Letterkenny Hospital",       fms: "HOLET", lat: "N5457.71", lng: "W00744.10" },
+  { name: "University Hospital Galway",  fms: "HOGUH", lat: "N5316.60", lng: "W00904.20" },
+  { name: "Castlebar Hospital",         fms: "HOCAS", lat: "N5351.00", lng: "W00918.10" },
+  { name: "Beaumont Hospital Pitch",    fms: "1017",  lat: "N5323.30", lng: "W00613.80" },
+  { name: "Tullamore Hospital",         fms: "321",   lat: "N5316.87", lng: "W00729.59" },
+  { name: "Casement Aerodrome",         fms: "EIME",  lat: "N5318.15", lng: "W00626.63" },
+  { name: "Waterford Airport",          fms: "EIWF",  lat: "N5211.22", lng: "W00705.23" }
 ];
 
 // ---- Coordinate parsing --------------------------------------------------
@@ -190,11 +190,11 @@ function decimalToDM(dd, isLat) {
 
 // Build a single leg row. trueBrg drives the groundspeed; brg shown is magnetic.
 // wind null -> still-air groundspeed (= cruise TAS).
-function legRow(name, dist, trueBrg, wind) {
+function legRow(name, dist, trueBrg, wind, fms) {
   const gs = groundspeedKt(CRUISE_KTS, trueBrg, wind);
   const timeMin = (dist / gs) * 60;
   const fuelKg = (timeMin / 60) * FUEL_KG_PER_HR;
-  return { name, dist, brg: toMagnetic(trueBrg), timeMin, fuelKg };
+  return { name, fms, dist, brg: toMagnetic(trueBrg), timeMin, fuelKg };
 }
 
 // Scene → hospitals (sorted nearest first).
@@ -204,7 +204,7 @@ function computeRows(origin, wind) {
     const dlng = parseAviationCoord(d.lng);
     const dist = distanceNM(origin.lat, origin.lng, dlat, dlng);
     const trueBrg = bearingDeg(origin.lat, origin.lng, dlat, dlng);
-    return legRow(d.name, dist, trueBrg, wind);
+    return legRow(d.name, dist, trueBrg, wind, d.fms);
   }).sort((a, b) => a.dist - b.dist);
 }
 
@@ -247,6 +247,7 @@ function tableHTML(rows) {
       (r, i) => `
       <tr>
         <td class="num">${i + 1}</td>
+        <td class="fms">${r.fms || ""}</td>
         <td class="name">${r.name}</td>
         <td class="figure">${r.dist.toFixed(1)}</td>
         <td class="figure">${fmtBearing(r.brg)}</td>
@@ -260,6 +261,7 @@ function tableHTML(rows) {
       <thead>
         <tr>
           <th class="num">#</th>
+          <th class="fms">FMS</th>
           <th class="name">Destination</th>
           <th class="figure">Dist (NM)</th>
           <th class="figure">Hdg (°M)</th>

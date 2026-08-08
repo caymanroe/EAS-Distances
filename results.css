@@ -137,7 +137,15 @@ html, body {
 .dist-table tbody tr:last-child td { border-bottom: none; }
 .dist-table tbody tr:nth-child(even) { background: var(--row-alt); }
 .dist-table .num { width: 40px; color: var(--muted); }
-.dist-table .name { font-weight: 550; }
+.dist-table .fms {
+  width: 64px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.dist-table .name { font-weight: 550; text-align: left; }
 .dist-table .figure { text-align: right; font-variant-numeric: tabular-nums; }
 .dist-table thead th.figure { text-align: right; }
 
@@ -222,6 +230,11 @@ html, body {
   .a5-copy .dist-table .figure,
   .a5-copy .dist-table thead th.figure { text-align: right; }
   .a5-copy .dist-table .num { color: #555; }
+  .a5-copy .dist-table .fms {
+    color: #333;
+    font-weight: 600;
+    white-space: nowrap;
+  }
 
   .copy-section-label {
     font-size: 7pt;
